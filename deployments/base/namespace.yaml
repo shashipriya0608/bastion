@@ -4,3 +4,12 @@ metadata:
   name: bastion-system
   labels:
     name: bastion-system
+
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: custom-api-server
+  labels:
+    name: custom-api-server

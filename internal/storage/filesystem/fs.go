@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/bastion/internal/storage"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/bastion/internal/storage"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // FileSystem writes backup data to the local filesystem default storage implementation
@@ -43,6 +44,7 @@ func NewFileSystemBasedBackup(baseDir string) *FileSystem {
 func (w *FileSystem) Write(ctx context.Context, obj *unstructured.Unstructured, hash string) (bool, error) {
 	gvk := obj.GroupVersionKind()
 	dir := filepath.Join(w.BaseDir, gvk.Group, gvk.Version, gvk.Kind, obj.GetNamespace(), obj.GetName())
+	fmt.Sprint("Witing/updating hash for GVK:", gvk, "in directory:", dir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return false, fmt.Errorf("failed to create backup dir: %w", err)
 	}
@@ -91,6 +93,55 @@ func (w *FileSystem) Read(ctx context.Context, gvk schema.GroupVersionKind, name
 	}
 	obj.SetGroupVersionKind(gvk)
 	return obj, string(hashBytes), nil
+}
+
+func (w *FileSystem) ReadAllHashes(ctx context.Context, gvk schema.GroupVersionKind) (map[string]string, error) {
+	dir := filepath.Join(w.BaseDir, gvk.Group, gvk.Version, gvk.Kind)
+	fmt.Sprint("Reading all hashes for GVK:", gvk, "from directory:", dir)
+	hashes := make(map[string]string)
+
+	// Walk through all namespaces
+	namespaces, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read namespace directory: %w", err)
+	}
+
+	for _, ns := range namespaces {
+		if !ns.IsDir() {
+			continue
+		}
+		namespaceDir := filepath.Join(dir, ns.Name())
+
+		// Walk through all resource names inside namespace
+		names, err := os.ReadDir(namespaceDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read resources in namespace %s: %w", ns.Name(), err)
+		}
+
+		for _, name := range names {
+			if !name.IsDir() {
+				continue
+			}
+			hashPath := filepath.Join(namespaceDir, name.Name(), "hash.txt")
+
+			// Read hash content
+			hashBytes, err := os.ReadFile(hashPath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+				return nil, fmt.Errorf("failed to read hash for %s/%s: %w", ns.Name(), name.Name(), err)
+			}
+
+			// Store hash with namespace and name as key
+			hashes[fmt.Sprintf("%s/%s", ns.Name(), name.Name())] = string(hashBytes)
+		}
+	}
+
+	return hashes, nil
 }
 
 func (w *FileSystem) Delete(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) error {

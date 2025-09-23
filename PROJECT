@@ -5,6 +5,7 @@
 domain: my.domain
 layout:
 - go.kubebuilder.io/v4
+multigroup: true
 projectName: bastion
 repo: github.com/bastion
 resources:
@@ -26,4 +27,7 @@ resources:
   kind: Restore
   path: github.com/bastion/api/v1alpha1
   version: v1alpha1
+- domain: my.domain
+  group: demobastion.io
+  version: v1beta1
 version: "3"

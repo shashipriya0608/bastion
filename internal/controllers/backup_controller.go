@@ -3,6 +3,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/bastion/internal/config"
 	"github.com/bastion/internal/dispatcher"
 	"github.com/bastion/internal/gc"
@@ -19,7 +21,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"time"
 )
 
 // BackupController sets up dynamic informers for CRDs and handles backup + GC of custom resources.
@@ -111,4 +112,15 @@ func (bc *BackupController) Setup(ctx context.Context, mgr manager.Manager) erro
 	logger.Info("backup controller setup complete")
 	go crdInformerFactory.Start(ctx.Done())
 	return nil
+}
+
+func (bc *BackupController) FetchDataFromFileServer(group, version, kind string) (map[string]string, error) {
+
+	gvk := schema.GroupVersionKind{
+		Group:   group,
+		Version: version,
+		Kind:    kind,
+	}
+
+	return bc.StoreFactory(bc.BaseDir).ReadAllHashes(context.TODO(), gvk)
 }

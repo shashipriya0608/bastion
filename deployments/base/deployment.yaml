@@ -18,8 +18,8 @@ spec:
       serviceAccountName: bastion-backup-sa
       containers:
         - name: bastion-backup
-          image: bastion-backup:latest
-          imagePullPolicy: Always
+          image: bastion:latest
+          imagePullPolicy: Never
           args:
             - --backup-root=/backups
             - --max-retries=5
@@ -34,7 +34,24 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+
+        - name: custom-api-server
+          image: bastion-apiserver:latest
+          imagePullPolicy: Never
+          args:
+            - --backup-root=/backups
+          ports:
+            - containerPort: 8443
+          volumeMounts:
+            - name: certs
+              mountPath: /certs
+              readOnly: true
+            - name: backup-storage
+              mountPath: /backups
       volumes:
+        - name: certs
+          secret:
+            secretName: api-server-tls
         - name: backup-storage
           persistentVolumeClaim:
             claimName: bastion-backup-pvc

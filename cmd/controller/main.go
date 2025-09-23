@@ -19,10 +19,11 @@ package main
 import (
 	"crypto/tls"
 	"flag"
-	"github.com/bastion/internal/config"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"os"
 	"time"
+
+	"github.com/bastion/internal/config"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
